@@ -3,6 +3,7 @@ const formCadastrar = document.getElementById("form-cadastrar");
 const abaEntrar = document.getElementById("aba-entrar");
 const abaCadastrar = document.getElementById("aba-cadastrar");
 const seletorPerfil = document.getElementById("cad-perfil");
+const campoCodigo = document.getElementById("campo-codigo");
 
 function mostrarAba(entrar) {
     formEntrar.hidden = !entrar;
@@ -22,6 +23,11 @@ function mostrarErro(idElemento, texto) {
 
 abaEntrar.addEventListener("click", () => mostrarAba(true));
 abaCadastrar.addEventListener("click", () => mostrarAba(false));
+
+// O campo do código só aparece quando o perfil escolhido é Direção.
+seletorPerfil.addEventListener("change", () => {
+    campoCodigo.hidden = seletorPerfil.value !== PERFIL_DIRECAO;
+});
 
 formEntrar.addEventListener("submit", async evento => {
     evento.preventDefault();
@@ -45,7 +51,8 @@ formCadastrar.addEventListener("submit", async evento => {
     const resultado = await cadastrarUsuario({
         nome: document.getElementById("cad-usuario").value,
         senha: document.getElementById("cad-senha").value,
-        perfil: seletorPerfil.value
+        perfil: seletorPerfil.value,
+        codigo: document.getElementById("cad-codigo").value
     });
 
     if (!resultado.ok) {
