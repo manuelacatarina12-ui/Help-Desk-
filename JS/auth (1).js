@@ -9,9 +9,9 @@ const PERFIL_ALUNO = "Aluno";
 const PERFIL_PROFESSOR = "Professor";
 const PERFIL_DIRECAO = "Direção";
 
-// Perfis que a própria pessoa pode escolher ao criar a conta.
-// A Direção é liberada por quem administra o banco.
-const PERFIS_CADASTRO = [PERFIL_ALUNO, PERFIL_PROFESSOR];
+// Perfis que a pessoa pode escolher ao criar a conta. A Direção exige um
+// código, conferido pelo banco (banco/schema.sql).
+const PERFIS_CADASTRO = [PERFIL_ALUNO, PERFIL_PROFESSOR, PERFIL_DIRECAO];
 
 // O Supabase pede e-mail; o site usa só "nome de usuário". Montamos um
 // e-mail fictício a partir do usuário (nenhum e-mail é enviado, desde que
@@ -91,7 +91,7 @@ async function sair() {
 // ---------- Cadastro e login ----------
 // Retornam { ok: true } ou { ok: false, erro: "mensagem" }.
 
-async function cadastrarUsuario({ nome, senha, perfil }) {
+async function cadastrarUsuario({ nome, senha, perfil, codigo }) {
     if (!supabaseClient) {
         return { ok: false, erro: "O banco de dados ainda não foi configurado (JS/config.js)." };
     }
@@ -110,18 +110,31 @@ async function cadastrarUsuario({ nome, senha, perfil }) {
     }
 
     if (!PERFIS_CADASTRO.includes(perfil)) {
-        return { ok: false, erro: "Escolha o perfil Aluno ou Professor." };
+        return { ok: false, erro: "Escolha um perfil." };
+    }
+
+    if (perfil === PERFIL_DIRECAO && !(codigo || "").trim()) {
+        return { ok: false, erro: "Informe o código da Direção." };
     }
 
     const { data, error } = await supabaseClient.auth.signUp({
         email: emailDoUsuario(nome),
         password: senha,
-        options: { data: { username: nome, role: perfil } }
+        options: {
+            data: perfil === PERFIL_DIRECAO
+                ? { username: nome, role: perfil, codigo: codigo.trim() }
+                : { username: nome, role: perfil }
+        }
     });
 
     if (error) {
         if (/already|registered|exists/i.test(error.message)) {
             return { ok: false, erro: "Esse nome de usuário já está em uso." };
+        }
+
+        // Código errado: o banco recusa a criação da conta.
+        if (perfil === PERFIL_DIRECAO && /database error|código/i.test(error.message)) {
+            return { ok: false, erro: "Código da Direção incorreto." };
         }
 
         return { ok: false, erro: "Não foi possível criar a conta: " + error.message };

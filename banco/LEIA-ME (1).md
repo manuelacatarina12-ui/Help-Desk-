@@ -11,19 +11,21 @@ O Supabase é gratuito para um projeto deste tamanho e guarda contas, senhas
 4. Em **Project Settings > API**, copie a **Project URL** e a chave **anon public**
    e cole em `JS/config.js`. (Nunca use a chave `service_role`.)
 5. Publique os arquivos no GitHub como de costume.
-6. Crie sua conta no site e, no **SQL Editor**, torne-a Direção:
+6. Defina o **código da Direção**: abra `banco/definir-codigo-direcao.sql`, troque
+   `TROQUE-POR-SEU-CODIGO` por um código seu (12+ caracteres), cole no SQL Editor e
+   clique em **Run**. Para trocar o código depois, rode de novo com outro valor.
+7. Pronto: no site, em **Criar conta**, a pessoa escolhe **Direção (Administração)**
+   e digita o código. O código é conferido pelo banco; se estiver errado, a conta
+   não é criada. Passe o código só para quem for da Direção.
 
-   ```sql
-   update public.profiles set role = 'Direção' where username = 'seu_usuario';
-   ```
-
-   Repita para cada pessoa da Direção. Pelo site, ninguém consegue se
-   cadastrar como Direção nem mudar o próprio perfil.
+(Também continua possível promover alguém manualmente:
+`update public.profiles set role = 'Direção' where username = 'usuario';`)
 
 ## O que o banco garante (mesmo se alguém mexer no site)
 - Aluno/Professor só enxergam e editam os próprios chamados.
 - Só a Direção vê todos, muda o status e exclui.
 - A Direção não edita o texto de chamados de outras pessoas.
+- Só cria conta de Direção quem souber o código (guardado criptografado, ilegível pelo site).
 - Ninguém cria chamado em nome de outra pessoa nem altera o autor.
 
 ## Observações

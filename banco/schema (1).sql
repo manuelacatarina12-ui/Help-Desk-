@@ -5,6 +5,9 @@
 -- navegador, o banco recusa o que o perfil não pode fazer.
 -- =====================================================================
 
+-- Função de criptografia (já vem no Supabase; garante que existe).
+create extension if not exists pgcrypto with schema extensions;
+
 -- ---------- Tabelas ----------
 
 create table if not exists public.profiles (
@@ -24,6 +27,13 @@ create table if not exists public.chamados (
     status     text not null default 'Aberto'
                check (status in ('Aberto', 'Em andamento', 'Resolvido')),
     created_at timestamptz not null default now()
+);
+
+-- Guarda (criptografado) o código exigido para criar conta da Direção.
+-- Os usuários do site NÃO conseguem ler esta tabela.
+create table if not exists public.config_seguranca (
+    id          int primary key default 1 check (id = 1),
+    codigo_hash text
 );
 
 create index if not exists chamados_autor_idx on public.chamados (autor_id);
@@ -46,23 +56,45 @@ as $$
 $$;
 
 -- Ao criar uma conta, cria o perfil automaticamente.
--- Pelo cadastro só é possível ser Aluno ou Professor: a Direção NUNCA
--- pode ser escolhida no site (é promovida manualmente, veja o final).
+--   Aluno e Professor: livres.
+--   Direção: só se o código informado bater com o guardado em
+--            config_seguranca; se estiver errado (ou ainda não definido),
+--            a conta NÃO é criada.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
-    perfil text := new.raw_user_meta_data ->> 'role';
+    perfil        text := new.raw_user_meta_data ->> 'role';
+    codigo_enviado text := new.raw_user_meta_data ->> 'codigo';
+    hash_guardado text;
 begin
-    if perfil is distinct from 'Professor' then
+    if perfil = 'Direção' then
+        select codigo_hash into hash_guardado
+        from public.config_seguranca where id = 1;
+
+        if hash_guardado is null
+           or codigo_enviado is null
+           or crypt(codigo_enviado, hash_guardado) <> hash_guardado then
+            raise exception 'Código da Direção incorreto.';
+        end if;
+    elsif perfil is distinct from 'Professor' then
         perfil := 'Aluno';
     end if;
 
     insert into public.profiles (id, username, role)
     values (new.id, lower(new.raw_user_meta_data ->> 'username'), perfil);
+
+    -- Não deixa o código digitado guardado na conta.
+    begin
+        update auth.users
+        set raw_user_meta_data = raw_user_meta_data - 'codigo'
+        where id = new.id;
+    exception when others then
+        null;
+    end;
 
     return new;
 end;
@@ -119,6 +151,7 @@ create trigger chamados_proteger_update
 
 revoke all on public.profiles from anon, authenticated;
 revoke all on public.chamados from anon, authenticated;
+revoke all on public.config_seguranca from anon, authenticated;
 
 grant select on public.profiles to authenticated;
 grant select, insert, update, delete on public.chamados to authenticated;
@@ -127,6 +160,7 @@ grant select, insert, update, delete on public.chamados to authenticated;
 
 alter table public.profiles enable row level security;
 alter table public.chamados enable row level security;
+alter table public.config_seguranca enable row level security;  -- sem regras: ninguém lê pelo site
 
 -- Perfis: cada um vê o próprio; a Direção vê todos. Ninguém altera pelo site.
 drop policy if exists "perfis_select" on public.profiles;
@@ -161,10 +195,7 @@ create policy "chamados_delete" on public.chamados
     using (public.is_direcao());
 
 -- =====================================================================
--- COMO CRIAR UMA CONTA DA DIREÇÃO
--- 1) A pessoa cria a conta normalmente no site (vira "Aluno").
--- 2) Você roda isto no SQL Editor, trocando o nome de usuário:
---
---    update public.profiles set role = 'Direção' where username = 'maria';
---
+-- DEFINIR O CÓDIGO DA DIREÇÃO
+-- Rode UMA vez o arquivo banco/definir-codigo-direcao.sql (veja o LEIA-ME).
+-- Enquanto nenhum código for definido, ninguém consegue criar conta de Direção.
 -- =====================================================================
