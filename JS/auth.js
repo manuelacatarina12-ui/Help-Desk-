@@ -29,8 +29,22 @@ const supabaseClient = bancoConfigurado
 
 let usuarioLogado = null;
 
+// Deixa o nome digitado (com acentos e espaços) pronto para virar a parte
+// local de um e-mail: remove acentos, troca espaços por "-" e mantém só
+// letras, números, ponto, hífen e _. O Supabase exige e-mail, mas o campo
+// visível continua sendo o nome como a pessoa digitou.
+function gerarApelido(nome) {
+    return nome
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")   // remove os acentos
+        .trim()
+        .replace(/\s+/g, "-")              // espaços viram hífen
+        .toLowerCase()
+        .replace(/[^a-z0-9._-]/g, "");     // remove qualquer outro símbolo
+}
+
 function emailDoUsuario(nome) {
-    return `${nome.trim().toLowerCase()}@${DOMINIO_EMAIL}`;
+    return `${gerarApelido(nome)}@${DOMINIO_EMAIL}`;
 }
 
 // Retorna { id, nome, perfil } do usuário logado, ou null.
@@ -96,12 +110,21 @@ async function cadastrarUsuario({ nome, senha, perfil, codigo }) {
         return { ok: false, erro: "O banco de dados ainda não foi configurado (JS/config.js)." };
     }
 
-    nome = (nome || "").trim();
+    // Permite letras com acento e espaços entre palavras (ex.: "José Conceição"),
+    // além de ponto, hífen, apóstrofo e _. Vários espaços seguidos viram um só.
+    nome = (nome || "").trim().replace(/\s+/g, " ");
 
-    if (!/^[a-z0-9._-]{3,30}$/i.test(nome)) {
+    if (!/^[\p{L}0-9 ._'-]{3,30}$/u.test(nome)) {
         return {
             ok: false,
-            erro: "O usuário deve ter de 3 a 30 caracteres: letras, números, ponto, hífen ou _ (sem espaços ou acentos)."
+            erro: "O nome deve ter de 3 a 30 caracteres: letras (com ou sem acento), números, espaço, ponto, hífen, apóstrofo ou _."
+        };
+    }
+
+    if (gerarApelido(nome).length < 3) {
+        return {
+            ok: false,
+            erro: "O nome precisa ter pelo menos 3 letras ou números."
         };
     }
 
