@@ -29,6 +29,27 @@ seletorPerfil.addEventListener("change", () => {
     campoCodigo.hidden = seletorPerfil.value !== PERFIL_DIRECAO;
 });
 
+// Lista de requisitos da senha: cada item é marcado conforme a pessoa digita.
+const campoSenhaCadastro = document.getElementById("cad-senha");
+const listaRequisitos = document.getElementById("requisitos-senha");
+
+REQUISITOS_SENHA.forEach(requisito => {
+    const item = document.createElement("li");
+    item.dataset.id = requisito.id;
+    item.textContent = requisito.texto;
+    listaRequisitos.appendChild(item);
+});
+
+function atualizarRequisitos() {
+    REQUISITOS_SENHA.forEach(requisito => {
+        const item = listaRequisitos.querySelector(`[data-id="${requisito.id}"]`);
+        item.classList.toggle("ok", requisito.teste(campoSenhaCadastro.value));
+    });
+}
+
+campoSenhaCadastro.addEventListener("input", atualizarRequisitos);
+atualizarRequisitos();
+
 formEntrar.addEventListener("submit", async evento => {
     evento.preventDefault();
 

@@ -547,3 +547,34 @@ textarea {
 [hidden] {
     display: none !important;
 }
+
+
+/* Requisitos da senha */
+
+.requisitos-senha {
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.85rem;
+    color: var(--tinta-suave);
+}
+
+.requisitos-senha li {
+    padding: 2px 0 2px 22px;
+    position: relative;
+}
+
+.requisitos-senha li::before {
+    content: "○";
+    position: absolute;
+    left: 2px;
+}
+
+.requisitos-senha li.ok {
+    color: var(--sinal);
+}
+
+.requisitos-senha li.ok::before {
+    content: "✓";
+    font-weight: 700;
+}

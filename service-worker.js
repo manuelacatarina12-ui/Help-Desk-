@@ -1,6 +1,6 @@
 // Ao alterar qualquer arquivo do site, mude o número da versão abaixo
 // para os aparelhos descartarem o cache antigo.
-const VERSAO_CACHE = "helpdesk-escolar-v3";
+const VERSAO_CACHE = "helpdesk-escolar-v4";
 
 const ARQUIVOS = [
     "./",

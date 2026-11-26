@@ -43,6 +43,21 @@ function gerarApelido(nome) {
         .replace(/[^a-z0-9._-]/g, "");     // remove qualquer outro símbolo
 }
 
+// Requisitos da senha. Estes testes seguem as regras de senha do Supabase
+// (Authentication > Sign In / Providers > Password): a proteção de verdade
+// é a configuração do Supabase; aqui só avisamos a pessoa antes de enviar.
+const REQUISITOS_SENHA = [
+    { id: "tamanho",   texto: "Pelo menos 8 caracteres", teste: s => s.length >= 8 },
+    { id: "minuscula", texto: "Uma letra minúscula (a-z)", teste: s => /[a-z]/.test(s) },
+    { id: "maiuscula", texto: "Uma letra maiúscula (A-Z)", teste: s => /[A-Z]/.test(s) },
+    { id: "numero",    texto: "Um número (0-9)", teste: s => /[0-9]/.test(s) },
+    { id: "especial",  texto: "Um caractere especial (ex.: ! @ # $ % & *)", teste: s => /[!@#$%^&*()_+\-=\[\]{};':"\\|<>?,./`~]/.test(s) }
+];
+
+function senhaForte(senha) {
+    return REQUISITOS_SENHA.every(requisito => requisito.teste(senha || ""));
+}
+
 function emailDoUsuario(nome) {
     return `${gerarApelido(nome)}@${DOMINIO_EMAIL}`;
 }
@@ -128,8 +143,11 @@ async function cadastrarUsuario({ nome, senha, perfil, codigo }) {
         };
     }
 
-    if (!senha || senha.length < 6) {
-        return { ok: false, erro: "A senha precisa ter ao menos 6 caracteres." };
+    if (!senhaForte(senha)) {
+        return {
+            ok: false,
+            erro: "A senha é fraca. Use 8 ou mais caracteres, com letra maiúscula, minúscula, número e caractere especial."
+        };
     }
 
     if (!PERFIS_CADASTRO.includes(perfil)) {
@@ -153,6 +171,14 @@ async function cadastrarUsuario({ nome, senha, perfil, codigo }) {
     if (error) {
         if (/already|registered|exists/i.test(error.message)) {
             return { ok: false, erro: "Esse nome de usuário já está em uso." };
+        }
+
+        // Senha fraca recusada pelo próprio Supabase.
+        if (error.code === "weak_password" || /password.*(weak|should|least|contain)/i.test(error.message)) {
+            return {
+                ok: false,
+                erro: "O Supabase recusou a senha por ser fraca. Use 8 ou mais caracteres, com maiúscula, minúscula, número e caractere especial."
+            };
         }
 
         // Código errado: o banco recusa a criação da conta.
